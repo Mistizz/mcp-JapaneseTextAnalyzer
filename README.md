@@ -44,7 +44,7 @@
 このパッケージはnpxでGitHubリポジトリから直接実行できます：
 
 ```bash
-npx github:Mistizz/mcp-JapaneseTextAnalyzer
+npx -y github:Mistizz/mcp-JapaneseTextAnalyzer
 ```
 
 ### Claude for Desktopでの使用
@@ -60,26 +60,10 @@ Claude for Desktopの設定ファイルに以下を追加してください:
 ```json
 {
   "mcpServers": {
-    "japanese-text-analyzer": {
+    "JapaneseTextAnalyzer": {
       "command": "npx",
       "args": [
-        "github:Mistizz/mcp-JapaneseTextAnalyzer"
-      ]
-    }
-  }
-}
-```
-
-Windows環境において、上記で動作しなかった場合、下記を試してみてください：
-
-```json
-{
-  "mcpServers": {
-    "JapaneseTextAnalyzer": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
+        "-y",
         "github:Mistizz/mcp-JapaneseTextAnalyzer"
       ]
     }
@@ -89,7 +73,45 @@ Windows環境において、上記で動作しなかった場合、下記を試�
 
 ### Cursorでの使用
 
-同様の設定をCursorでも使用できます。
+Cursorでも同様の設定を`.cursor`フォルダ内の`mcp.json`ファイルに追加します。
+
+**Windows:**
+`%USERPROFILE%\.cursor\mcp.json`
+
+**macOS/Linux:**
+`~/.cursor/mcp.json`
+
+一般的な設定(殆どの環境で動作):
+```json
+{
+  "mcpServers": {
+    "JapaneseTextAnalyzer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "github:Mistizz/mcp-JapaneseTextAnalyzer"
+      ]
+    }
+  }
+}
+```
+
+Windows環境において、上記で動作しなかった場合、下記を試してみてください：
+```json
+{
+  "mcpServers": {
+    "JapaneseTextAnalyzer": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "github:Mistizz/mcp-JapaneseTextAnalyzer"
+      ]
+    }
+  }
+}
+```
 
 ## 使用例
 
@@ -103,17 +125,18 @@ Windows環境において、上記で動作しなかった場合、下記を試�
 C:\path\to\your\file.txt の単語数を日本語モードで数えてください。
 ```
 
-### クリップボードテキストの英語単語数を数える
+### テキストを貼り付けて日本語の単語数を数える
 ```
-次のテキストの英語の単語数を数えてください：
-This is a sample text that I want to count words for.
+次のテキストの日本語の単語数を数えてください：
+
+吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している。
 ```
 
-Japanese Text Analyzerツールは以下のような用途に適しています:
-- 日本語文書の文字数の確認
-- 記事や論文の文字数・単語数の測定
-- テキスト入力フォームの文字数制限の確認
-- 翻訳前後のテキスト量の比較
+## 内部動作について
+
+このツールは、日本語の単語数カウントに「kuromoji.js」という形態素解析ライブラリを使用しています。形態素解析は自然言語処理の基本的な処理で、文章を意味を持つ最小単位（形態素）に分割します。
+
+形態素解析の処理は初期化に時間がかかることがあります。特に、辞書データを読み込む必要があるため、初回実行時に少々時間がかかる場合があります。サーバー起動時に形態素解析器の初期化を行うことで、ツール実行時の遅延を最小限に抑えています。
 
 ## ライセンス
 
