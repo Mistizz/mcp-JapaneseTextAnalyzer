@@ -4,86 +4,128 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 import { z } from 'zod';
 
-// ESモジュールでrequireを使用するための設定
 const require = createRequire(import.meta.url);
-const kuromoji = require('kuromoji');
-
-// ESモジュールで__dirnameの代わりに使用
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 初期化状態を管理するための変数
+// kuromojiをrequireで読み込む
+const kuromoji = require('kuromoji');
+
+// グローバル変数で形態素解析器の状態を管理
 let tokenizerInstance = null;
-let initializationPromise = null;
+let initializingPromise = null;
 let initializationError = null;
 
-// 辞書パスを明示的に指定するための関数
-function getDictionaryPath() {
-  try {
-    // kuromojiモジュールのパスを取得
-    const kuromojiPath = path.dirname(require.resolve('kuromoji'));
-    // 辞書パスを構築
-    const dicPath = path.join(kuromojiPath, 'dict');
-    console.error(`辞書パス: ${dicPath}`);
-    return dicPath;
-  } catch (error) {
-    console.error(`辞書パスの解決に失敗しました: ${error.message}`);
-    // フォールバックとして相対パスを返す
-    return path.resolve(path.join('node_modules', 'kuromoji', 'dict'));
-  }
-}
-
-// 形態素解析器の初期化関数
-function initializeTokenizer() {
-  // すでに初期化が進行中の場合は、そのPromiseを返す
-  if (initializationPromise) {
-    return initializationPromise;
-  }
-
-  // 初期化済みの場合は、そのインスタンスを返す
-  if (tokenizerInstance) {
-    return Promise.resolve(tokenizerInstance);
-  }
-
-  console.error('形態素解析器の初期化を開始します...');
-  
-  // 初期化処理を行い、Promiseを保存
-  initializationPromise = new Promise((resolve, reject) => {
-    const dicPath = getDictionaryPath();
-    kuromoji.builder({ dicPath: dicPath }).build((err, tokenizer) => {
-      if (err) {
-        console.error(`形態素解析器の初期化エラー: ${err}`);
-        initializationError = err;
-        reject(err);
-        return;
+// 辞書パスを見つける関数
+function findDictionaryPath() {
+  // 考えられる辞書パスの候補を配列で定義
+  const possiblePaths = [
+    // 1. require.resolveを使用してkuromojiのパスを見つける
+    (() => {
+      try {
+        // kuromojiモジュールのパスを取得し、そこからdictディレクトリへのパスを構築
+        const kuromojiPath = path.dirname(require.resolve('kuromoji'));
+        return path.join(kuromojiPath, 'dict');
+      } catch (e) {
+        return null;
       }
-      
-      console.error('形態素解析器の初期化が完了しました');
-      tokenizerInstance = tokenizer;
-      resolve(tokenizer);
-    });
-  });
-
-  return initializationPromise;
+    })(),
+    
+    // 2. 実行ファイルからの相対パス
+    path.resolve(__dirname, '../node_modules/kuromoji/dict'),
+    
+    // 3. カレントディレクトリからの相対パス
+    path.resolve('./node_modules/kuromoji/dict'),
+    
+    // 4. プロセスのカレントワーキングディレクトリからの相対パス
+    path.resolve(process.cwd(), 'node_modules/kuromoji/dict'),
+    
+    // 5. グローバルnpmモジュールからの相対パス（Unixの場合）
+    process.env.HOME ? path.resolve(process.env.HOME, '.npm/kuromoji/dict') : null,
+    
+    // 6. npmのキャッシュディレクトリ
+    process.env.npm_config_cache ? path.resolve(process.env.npm_config_cache, 'kuromoji/dict') : null,
+  ].filter(Boolean); // nullやundefinedをフィルタリング
+  
+  // 各パスが存在するか確認し、最初に見つかったものを返す
+  for (const dicPath of possiblePaths) {
+    try {
+      if (dicPath && fs.existsSync(dicPath)) {
+        console.error(`辞書パスが見つかりました: ${dicPath}`);
+        return dicPath;
+      }
+    } catch (e) {
+      // エラーが発生した場合は次のパスを試す
+      continue;
+    }
+  }
+  
+  // 見つからなかった場合はデフォルトパスを返す
+  console.error('辞書パスが見つかりませんでした。デフォルトパスを使用します。');
+  return './node_modules/kuromoji/dict';
 }
 
-// 形態素解析器の初期化状態を確認し、必要に応じて初期化する関数
-async function ensureTokenizerInitialized() {
-  try {
-    // 初期化済みの場合はそのインスタンスを返す
-    if (tokenizerInstance) {
-      return tokenizerInstance;
+// 形態素解析器を初期化する関数
+async function initializeTokenizer() {
+  // すでに初期化されている場合
+  if (tokenizerInstance) {
+    return tokenizerInstance;
+  }
+  
+  // 初期化中の場合
+  if (initializingPromise) {
+    return initializingPromise;
+  }
+  
+  console.error('形態素解析器の初期化を開始...');
+  
+  // 辞書パスを取得
+  const dicPath = findDictionaryPath();
+  console.error(`使用する辞書パス: ${dicPath}`);
+  
+  // 初期化処理をPromiseでラップ
+  initializingPromise = new Promise((resolve, reject) => {
+    try {
+      kuromoji.builder({ dicPath }).build((err, tokenizer) => {
+        if (err) {
+          console.error(`形態素解析器の初期化エラー: ${err.message || err}`);
+          initializationError = err;
+          initializingPromise = null; // リセットして再試行できるようにする
+          reject(err);
+          return;
+        }
+        
+        console.error('形態素解析器の初期化が完了しました');
+        tokenizerInstance = tokenizer;
+        resolve(tokenizer);
+      });
+    } catch (error) {
+      console.error(`形態素解析器の初期化中に例外が発生: ${error.message || error}`);
+      initializationError = error;
+      initializingPromise = null; // リセットして再試行できるようにする
+      reject(error);
     }
-    
-    // 初期化が進行中または未初期化の場合は初期化する
-    const tokenizer = await initializeTokenizer();
-    return tokenizer;
+  });
+  
+  return initializingPromise;
+}
+
+// トークナイザの初期化を確認し、必要に応じて初期化する関数
+async function ensureTokenizerInitialized() {
+  // すでに初期化済み
+  if (tokenizerInstance) {
+    return tokenizerInstance;
+  }
+  
+  try {
+    // 初期化を試みる
+    return await initializeTokenizer();
   } catch (error) {
-    console.error(`形態素解析器の初期化中にエラーが発生しました: ${error}`);
+    console.error(`形態素解析器の初期化に失敗: ${error.message || error}`);
     throw new Error('形態素解析器の初期化に失敗しました。しばらく待ってから再試行してください。');
   }
 }
