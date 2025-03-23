@@ -36,8 +36,11 @@ npx github:Mistizz/mcp-JapaneseTextAnalyzer
 ```
 
 ### Claude Desktopでの使用
+### Cursor での使用
 
-`claude_desktop_config.json`に以下を追加してください:
+※ Claude Desktop での動作確認はまだ行っていません。
+
+`mcp.json`に以下を追加してください:
 
 ```json
 {
