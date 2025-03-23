@@ -27,10 +27,11 @@ function findDictionaryPath() {
     // 1. require.resolveを使用してkuromojiのパスを見つける
     (() => {
       try {
-        // kuromojiモジュールのパスを取得し、そこからdictディレクトリへのパスを構築
-        const kuromojiPath = path.dirname(require.resolve('kuromoji'));
+        // kuromojiモジュールのルートパスを取得
+        const kuromojiPath = path.dirname(require.resolve('kuromoji/package.json'));
         return path.join(kuromojiPath, 'dict');
       } catch (e) {
+        console.error(`require.resolveエラー: ${e}`);
         return null;
       }
     })(),
@@ -54,12 +55,14 @@ function findDictionaryPath() {
   // 各パスが存在するか確認し、最初に見つかったものを返す
   for (const dicPath of possiblePaths) {
     try {
-      if (dicPath && fs.existsSync(dicPath)) {
+      // base.dat.gzが存在するか確認
+      if (dicPath && fs.existsSync(path.join(dicPath, 'base.dat.gz'))) {
         console.error(`辞書パスが見つかりました: ${dicPath}`);
         return dicPath;
       }
     } catch (e) {
       // エラーが発生した場合は次のパスを試す
+      console.error(`パス確認エラー(${dicPath}): ${e}`);
       continue;
     }
   }
@@ -367,31 +370,55 @@ class JapaneseTextAnalyzer {
 
   // サーバーを起動
   async start() {
-    // 形態素解析器を初期化
-    const initSuccess = await this.setupMorphologicalAnalyzer();
-    if (initSuccess) {
-      console.log('形態素解析器の初期化が完了しました。ツールのセットアップを行います。');
-    } else {
-      console.warn('形態素解析器の初期化に問題がありましたが、セットアップを続行します。');
-    }
-    
-    // ツールを設定
-    this.setupTools();
+    try {
+      // サーバー起動前に形態素解析器を初期化
+      console.error('サーバー起動前に形態素解析器の初期化を開始します...');
+      try {
+        // 形態素解析器を初期化
+        await initializeTokenizer();
+        this.tokenizerReady = tokenizerInstance !== null;
+        console.error('形態素解析器の初期化が完了しました');
+      } catch (error) {
+        console.error(`形態素解析器の初期化に失敗しましたが、サーバーは起動を続行します: ${error.message || error}`);
+        this.tokenizerReady = false;
+      }
 
-    // サーバーを接続
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    
-    console.log('MCPサーバーが起動しました！標準入出力でリッスン中...');
+      // ツールをセットアップ
+      this.setupTools();
+
+      // サーバーを起動
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+
+      console.error('サーバーが起動しました。標準入出力からの要求を待機しています...');
+    } catch (error) {
+      console.error(`サーバーの起動中にエラーが発生しました: ${error.message || error}`);
+      throw error;
+    }
   }
 }
 
 // メイン関数
 async function main() {
-  const server = new JapaneseTextAnalyzer();
-  
-  // サーバーを起動（内部で形態素解析器も初期化）
-  await server.start();
+  try {
+    // サーバー起動前に形態素解析器を初期化
+    console.error('サーバー起動前に形態素解析器の初期化を開始します...');
+    try {
+      await initializeTokenizer();
+      console.error('形態素解析器の初期化が完了しました');
+    } catch (err) {
+      console.error(`形態素解析器の初期化中にエラーが発生しましたが、サーバーは起動を続行します: ${err.message || err}`);
+    }
+
+    // サーバーインスタンスを作成
+    const server = new JapaneseTextAnalyzer();
+    
+    // サーバーを起動
+    await server.start();
+  } catch (error) {
+    console.error(`サーバーの起動中にエラーが発生しました: ${error.message || error}`);
+    process.exit(1);
+  }
 }
 
 main().catch(error => {
