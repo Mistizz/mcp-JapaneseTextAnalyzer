@@ -4,14 +4,25 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { z } from 'zod';
-import * as kuromoji from 'kuromoji';
+
+// ESモジュールでrequireを使用するための設定
+const require = createRequire(import.meta.url);
+const kuromoji = require('kuromoji');
+
+// ESモジュールで__dirnameの代わりに使用
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // kuromojiの辞書をロード
 let tokenizer: any = null;
 function initializeTokenizer(): Promise<void> {
   return new Promise((resolve, reject) => {
-    kuromoji.builder({ dicPath: path.join(__dirname, '../node_modules/kuromoji/dict') }).build((err, _tokenizer) => {
+    // ディレクトリパスを修正
+    const dicPath = path.resolve(__dirname, '../node_modules/kuromoji/dict');
+    kuromoji.builder({ dicPath }).build((err: any, _tokenizer: any) => {
       if (err) {
         reject(err);
         return;
