@@ -24,20 +24,29 @@ let tokenizerInitialized = false;
 // 形態素解析器の初期化が完了するのを待つプロミス
 let tokenizerInitPromise: Promise<void> | null = null;
 
+// 形態素解析器の初期化
 function initializeTokenizer(): Promise<void> {
-  if (tokenizerInitPromise) {
+  // 既に初期化済みの場合は完了済みのプロミスを返す
+  if (tokenizerInitialized && tokenizer) {
+    return Promise.resolve<void>(undefined);
+  }
+
+  // 初期化中の場合は既存のプロミスを返す
+  if (tokenizerInitializing && tokenizerInitPromise) {
     return tokenizerInitPromise;
   }
   
   tokenizerInitializing = true;
   
-  tokenizerInitPromise = new Promise((resolve, reject) => {
+  // 新しいプロミスを作成
+  tokenizerInitPromise = new Promise<void>((resolve, reject) => {
     console.log('形態素解析器の初期化を開始します...');
     // ディレクトリパスを修正
     const dicPath = path.resolve(__dirname, '../node_modules/kuromoji/dict');
     kuromoji.builder({ dicPath }).build((err: any, _tokenizer: any) => {
       if (err) {
         tokenizerInitializing = false;
+        tokenizerInitPromise = null;
         console.error('形態素解析器の初期化に失敗しました:', err);
         reject(err);
         return;
@@ -48,6 +57,12 @@ function initializeTokenizer(): Promise<void> {
       console.log('形態素解析器が正常に初期化されました。');
       resolve();
     });
+  }).catch(err => {
+    // エラーハンドリングを改善
+    tokenizerInitializing = false;
+    tokenizerInitPromise = null;
+    console.error('形態素解析器の初期化中にエラーが発生しました:', err);
+    throw err; // 呼び出し元でも処理できるようにエラーを再スロー
   });
   
   return tokenizerInitPromise;
@@ -55,37 +70,25 @@ function initializeTokenizer(): Promise<void> {
 
 // 形態素解析器が初期化されているか確認する関数
 async function ensureTokenizerInitialized(): Promise<boolean> {
-  if (tokenizerInitialized) {
+  // 既に初期化済みの場合
+  if (tokenizerInitialized && tokenizer) {
     return true;
   }
   
-  if (tokenizerInitializing && tokenizerInitPromise) {
-    try {
-      await tokenizerInitPromise;
-      return true;
-    } catch (err) {
-      console.error('形態素解析器の初期化を待機中にエラーが発生しました:', err);
-      return false;
-    }
+  try {
+    // 初期化を試みる (既に進行中なら既存のプロミスが返される)
+    await initializeTokenizer();
+    return tokenizerInitialized && tokenizer !== null;
+  } catch (err) {
+    console.error('形態素解析器の初期化確認中にエラーが発生しました:', err);
+    return false;
   }
-  
-  // まだ初期化が開始されていない場合は開始
-  if (!tokenizerInitializing) {
-    try {
-      await initializeTokenizer();
-      return true;
-    } catch (err) {
-      console.error('形態素解析器の初期化に失敗しました:', err);
-      return false;
-    }
-  }
-  
-  return false;
 }
 
 // JapaneseTextAnalyzerサーバークラス
 class JapaneseTextAnalyzer {
   private server: McpServer;
+  private tokenizerReady: boolean = false;
 
   constructor() {
     this.server = new McpServer({
@@ -94,12 +97,16 @@ class JapaneseTextAnalyzer {
     });
   }
 
-  // 形態素解析器の初期化
-  async initializeTokenizer() {
+  // 形態素解析器のセットアップ
+  async setupMorphologicalAnalyzer() {
     try {
       await initializeTokenizer();
+      this.tokenizerReady = tokenizerInitialized && tokenizer !== null;
+      return this.tokenizerReady;
     } catch (error) {
-      console.error('形態素解析器の初期化に失敗しました:', error);
+      console.error('形態素解析器のセットアップに失敗しました:', error);
+      this.tokenizerReady = false;
+      return false;
     }
   }
 
@@ -140,9 +147,13 @@ class JapaneseTextAnalyzer {
         resultText = `${sourceName}の単語数: ${wordCount}単語 (英語モード)`;
       } else if (language === 'ja') {
         // 日本語の場合、kuromojiを使用して形態素解析
-        const tokenInitialized = await ensureTokenizerInitialized();
+        // 形態素解析器が利用可能かを確認
+        if (!this.tokenizerReady) {
+          await this.setupMorphologicalAnalyzer();
+        }
         
-        if (!tokenInitialized || !tokenizer) {
+        // 形態素解析器が初期化されているか最終確認
+        if (!tokenizerInitialized || !tokenizer) {
           return {
             content: [{ 
               type: 'text' as const, 
@@ -152,6 +163,7 @@ class JapaneseTextAnalyzer {
           };
         }
         
+        // 形態素解析を実行
         const tokens = tokenizer.tokenize(text);
         
         // 記号と空白以外のすべての単語をカウント（助詞や助動詞も含める）
@@ -311,7 +323,12 @@ class JapaneseTextAnalyzer {
   // サーバーを起動
   async start() {
     // 形態素解析器を初期化
-    await this.initializeTokenizer();
+    const initSuccess = await this.setupMorphologicalAnalyzer();
+    if (initSuccess) {
+      console.log('形態素解析器の初期化が完了しました。ツールのセットアップを行います。');
+    } else {
+      console.warn('形態素解析器の初期化に問題がありましたが、セットアップを続行します。');
+    }
     
     // ツールを設定
     this.setupTools();
