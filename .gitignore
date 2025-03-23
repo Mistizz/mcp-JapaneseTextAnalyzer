@@ -25,3 +25,6 @@ yarn-error.log*
 # OS生成ファイル
 .DS_Store
 Thumbs.db 
+
+# その他
+sample.txt

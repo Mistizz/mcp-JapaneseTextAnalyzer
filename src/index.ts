@@ -18,19 +18,69 @@ const __dirname = path.dirname(__filename);
 
 // kuromojiの辞書をロード
 let tokenizer: any = null;
+let tokenizerInitializing = false;
+let tokenizerInitialized = false;
+
+// 形態素解析器の初期化が完了するのを待つプロミス
+let tokenizerInitPromise: Promise<void> | null = null;
+
 function initializeTokenizer(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  if (tokenizerInitPromise) {
+    return tokenizerInitPromise;
+  }
+  
+  tokenizerInitializing = true;
+  
+  tokenizerInitPromise = new Promise((resolve, reject) => {
+    console.log('形態素解析器の初期化を開始します...');
     // ディレクトリパスを修正
     const dicPath = path.resolve(__dirname, '../node_modules/kuromoji/dict');
     kuromoji.builder({ dicPath }).build((err: any, _tokenizer: any) => {
       if (err) {
+        tokenizerInitializing = false;
+        console.error('形態素解析器の初期化に失敗しました:', err);
         reject(err);
         return;
       }
       tokenizer = _tokenizer;
+      tokenizerInitialized = true;
+      tokenizerInitializing = false;
+      console.log('形態素解析器が正常に初期化されました。');
       resolve();
     });
   });
+  
+  return tokenizerInitPromise;
+}
+
+// 形態素解析器が初期化されているか確認する関数
+async function ensureTokenizerInitialized(): Promise<boolean> {
+  if (tokenizerInitialized) {
+    return true;
+  }
+  
+  if (tokenizerInitializing && tokenizerInitPromise) {
+    try {
+      await tokenizerInitPromise;
+      return true;
+    } catch (err) {
+      console.error('形態素解析器の初期化を待機中にエラーが発生しました:', err);
+      return false;
+    }
+  }
+  
+  // まだ初期化が開始されていない場合は開始
+  if (!tokenizerInitializing) {
+    try {
+      await initializeTokenizer();
+      return true;
+    } catch (err) {
+      console.error('形態素解析器の初期化に失敗しました:', err);
+      return false;
+    }
+  }
+  
+  return false;
 }
 
 // JapaneseTextAnalyzerサーバークラス
@@ -48,7 +98,6 @@ class JapaneseTextAnalyzer {
   async initializeTokenizer() {
     try {
       await initializeTokenizer();
-      console.log('形態素解析器が初期化されました。');
     } catch (error) {
       console.error('形態素解析器の初期化に失敗しました:', error);
     }
@@ -79,7 +128,7 @@ class JapaneseTextAnalyzer {
   }
 
   // テキストの単語数を計測する処理
-  private countTextWordsImpl(text: string, language: 'en' | 'ja' = 'en', sourceName: string = 'テキスト') {
+  private async countTextWordsImpl(text: string, language: 'en' | 'ja' = 'en', sourceName: string = 'テキスト') {
     try {
       let wordCount = 0;
       let resultText = '';
@@ -91,11 +140,13 @@ class JapaneseTextAnalyzer {
         resultText = `${sourceName}の単語数: ${wordCount}単語 (英語モード)`;
       } else if (language === 'ja') {
         // 日本語の場合、kuromojiを使用して形態素解析
-        if (!tokenizer) {
+        const tokenInitialized = await ensureTokenizerInitialized();
+        
+        if (!tokenInitialized || !tokenizer) {
           return {
             content: [{ 
               type: 'text' as const, 
-              text: '形態素解析器が初期化されていません。'
+              text: '形態素解析器の初期化に失敗しました。しばらく待ってから再試行してください。'
             }],
             isError: true
           };
@@ -179,7 +230,7 @@ class JapaneseTextAnalyzer {
         if (isFilePath) {
           try {
             const fileContent = fs.readFileSync(input, 'utf8');
-            return this.countTextWordsImpl(fileContent, language, `ファイル '${input}'`);
+            return await this.countTextWordsImpl(fileContent, language, `ファイル '${input}'`);
           } catch (error: any) {
             return {
               content: [{ 
@@ -190,7 +241,7 @@ class JapaneseTextAnalyzer {
             };
           }
         } else {
-          return this.countTextWordsImpl(input, language);
+          return await this.countTextWordsImpl(input, language);
         }
       }
     );
@@ -226,7 +277,7 @@ class JapaneseTextAnalyzer {
       async ({ filePath, language }) => {
         try {
           const fileContent = fs.readFileSync(filePath, 'utf8');
-          return this.countTextWordsImpl(fileContent, language, `ファイル '${filePath}'`);
+          return await this.countTextWordsImpl(fileContent, language, `ファイル '${filePath}'`);
         } catch (error: any) {
           return {
             content: [{ 
@@ -253,12 +304,15 @@ class JapaneseTextAnalyzer {
         text: z.string().describe('単語数をカウントするテキスト'),
         language: z.enum(['en', 'ja']).default('en').describe('テキストの言語 (en: 英語, ja: 日本語)')
       },
-      async ({ text, language }) => this.countTextWordsImpl(text, language, 'クリップボードのテキスト')
+      async ({ text, language }) => await this.countTextWordsImpl(text, language, 'クリップボードのテキスト')
     );
   }
 
   // サーバーを起動
   async start() {
+    // 形態素解析器を初期化
+    await this.initializeTokenizer();
+    
     // ツールを設定
     this.setupTools();
 
@@ -274,10 +328,7 @@ class JapaneseTextAnalyzer {
 async function main() {
   const server = new JapaneseTextAnalyzer();
   
-  // 形態素解析器を初期化
-  await server.initializeTokenizer();
-  
-  // サーバーを起動
+  // サーバーを起動（内部で形態素解析器も初期化）
   await server.start();
 }
 
