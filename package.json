@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "description": "MCP server for analyzing Japanese text with morphological analysis",
   "main": "dist/index.js",
+  "bin": {
+    "mcp-japanesetextanalyzer": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && shx chmod +x dist/index.js",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
@@ -15,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^18.19.81",
+    "shx": "^0.3.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }

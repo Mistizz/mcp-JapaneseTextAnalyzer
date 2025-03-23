@@ -27,6 +27,52 @@
 
 ## 使用方法
 
+### npxでの実行
+
+このパッケージはnpxで直接実行できます：
+
+```bash
+npx mcp-japanesetextanalyzer
+```
+
+または、GitHubリポジトリから直接実行：
+
+```bash
+npx github:Mistizz/mcp-JapaneseTextAnalyzer
+```
+
+### Claude Desktopでの使用
+
+`claude_desktop_config.json`に以下を追加してください:
+
+```json
+{
+  "mcpServers": {
+    "japanese-text-analyzer": {
+      "command": "npx",
+      "args": [
+        "mcp-japanesetextanalyzer"
+      ]
+    }
+  }
+}
+```
+
+または、GitHubリポジトリから直接実行する場合：
+
+```json
+{
+  "mcpServers": {
+    "japanese-text-analyzer": {
+      "command": "npx",
+      "args": [
+        "github:Mistizz/mcp-JapaneseTextAnalyzer"
+      ]
+    }
+  }
+}
+```
+
 Japanese Text Analyzerツールは以下のような用途に適しています:
 - 日本語文書の文字数制限の確認
 - 英語と日本語の混在したテキストの分析
