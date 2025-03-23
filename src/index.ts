@@ -19,6 +19,7 @@ const kuromoji = require('kuromoji');
 let tokenizerInstance = null;
 let initializingPromise = null;
 let initializationError = null;
+let tokenizerReady = false;
 
 // 辞書パスを見つける関数
 function findDictionaryPath() {
@@ -79,7 +80,7 @@ async function initializeTokenizer() {
     return tokenizerInstance;
   }
   
-  // 初期化中の場合
+  // 初期化中の場合は既存のPromiseを返す
   if (initializingPromise) {
     return initializingPromise;
   }
@@ -98,18 +99,21 @@ async function initializeTokenizer() {
           console.error(`形態素解析器の初期化エラー: ${err.message || err}`);
           initializationError = err;
           initializingPromise = null; // リセットして再試行できるようにする
+          tokenizerReady = false;
           reject(err);
           return;
         }
         
         console.error('形態素解析器の初期化が完了しました');
         tokenizerInstance = tokenizer;
+        tokenizerReady = true;
         resolve(tokenizer);
       });
     } catch (error) {
       console.error(`形態素解析器の初期化中に例外が発生: ${error.message || error}`);
       initializationError = error;
       initializingPromise = null; // リセットして再試行できるようにする
+      tokenizerReady = false;
       reject(error);
     }
   });
@@ -117,45 +121,15 @@ async function initializeTokenizer() {
   return initializingPromise;
 }
 
-// トークナイザの初期化を確認し、必要に応じて初期化する関数
-async function ensureTokenizerInitialized() {
-  // すでに初期化済み
-  if (tokenizerInstance) {
-    return tokenizerInstance;
-  }
-  
-  try {
-    // 初期化を試みる
-    return await initializeTokenizer();
-  } catch (error) {
-    console.error(`形態素解析器の初期化に失敗: ${error.message || error}`);
-    throw new Error('形態素解析器の初期化に失敗しました。しばらく待ってから再試行してください。');
-  }
-}
-
 // JapaneseTextAnalyzerサーバークラス
 class JapaneseTextAnalyzer {
   private server: McpServer;
-  private tokenizerReady: boolean = false;
 
   constructor() {
     this.server = new McpServer({
       name: 'JapaneseTextAnalyzer',
       version: '1.0.0'
     });
-  }
-
-  // 形態素解析器のセットアップ
-  async setupMorphologicalAnalyzer() {
-    try {
-      await initializeTokenizer();
-      this.tokenizerReady = tokenizerInstance !== null;
-      return this.tokenizerReady;
-    } catch (error) {
-      console.error('形態素解析器のセットアップに失敗しました:', error);
-      this.tokenizerReady = false;
-      return false;
-    }
   }
 
   // テキストの文字数を計測する処理
@@ -196,12 +170,11 @@ class JapaneseTextAnalyzer {
       } else if (language === 'ja') {
         // 日本語の場合、kuromojiを使用して形態素解析
         // 形態素解析器が利用可能かを確認
-        if (!this.tokenizerReady) {
-          await this.setupMorphologicalAnalyzer();
-        }
+        let tokenizer;
         
-        // 形態素解析器が初期化されているか最終確認
-        if (!tokenizerInstance) {
+        try {
+          tokenizer = await initializeTokenizer();
+        } catch (error) {
           return {
             content: [{ 
               type: 'text' as const, 
@@ -212,7 +185,7 @@ class JapaneseTextAnalyzer {
         }
         
         // 形態素解析を実行
-        const tokens = tokenizerInstance.tokenize(text);
+        const tokens = tokenizer.tokenize(text);
         
         // 記号と空白以外のすべての単語をカウント（助詞や助動詞も含める）
         const meaningfulTokens = tokens.filter((token: any) => {
@@ -371,18 +344,6 @@ class JapaneseTextAnalyzer {
   // サーバーを起動
   async start() {
     try {
-      // サーバー起動前に形態素解析器を初期化
-      console.error('サーバー起動前に形態素解析器の初期化を開始します...');
-      try {
-        // 形態素解析器を初期化
-        await initializeTokenizer();
-        this.tokenizerReady = tokenizerInstance !== null;
-        console.error('形態素解析器の初期化が完了しました');
-      } catch (error) {
-        console.error(`形態素解析器の初期化に失敗しましたが、サーバーは起動を続行します: ${error.message || error}`);
-        this.tokenizerReady = false;
-      }
-
       // ツールをセットアップ
       this.setupTools();
 
