@@ -49,13 +49,7 @@ npx -y github:Mistizz/mcp-JapaneseTextAnalyzer
 
 ### Claude for Desktopでの使用
 
-Claude for Desktopの設定ファイルに以下を追加してください:
-
-**Windows:**
-`%AppData%\Claude\claude_desktop_config.json`
-
-**macOS:**
-`~/Library/Application Support/Claude/claude_desktop_config.json`
+Claude for Desktopの設定ファイル`claude_desktop_config.json`に以下を追加してください:
 
 ```json
 {
@@ -74,12 +68,6 @@ Claude for Desktopの設定ファイルに以下を追加してください:
 ### Cursorでの使用
 
 Cursorでも同様の設定を`.cursor`フォルダ内の`mcp.json`ファイルに追加します。
-
-**Windows:**
-`%USERPROFILE%\.cursor\mcp.json`
-
-**macOS/Linux:**
-`~/.cursor/mcp.json`
 
 一般的な設定(殆どの環境で動作):
 ```json
@@ -115,12 +103,12 @@ Windows環境において、上記で動作しなかった場合、下記を試�
 
 ## 使用例
 
-### 直接テキストの文字数を数える
+### チャットにファイル（.txt, .mdなど）をアップロードして、テキストの文字数を数える
 ```
 このテキストの文字数を数えてください。
 ```
 
-### ファイルの単語数を日本語モードで数える
+### ファイルパスを指定して、ファイルの単語数を日本語モードで数える
 ```
 C:\path\to\your\file.txt の単語数を日本語モードで数えてください。
 ```
