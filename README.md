@@ -29,13 +29,7 @@
 
 ### npxでの実行
 
-このパッケージはnpxで直接実行できます：
-
-```bash
-npx mcp-japanesetextanalyzer
-```
-
-または、GitHubリポジトリから直接実行：
+このパッケージはnpxでGitHubリポジトリから直接実行できます：
 
 ```bash
 npx github:Mistizz/mcp-JapaneseTextAnalyzer
@@ -73,33 +67,25 @@ npx github:Mistizz/mcp-JapaneseTextAnalyzer
 }
 ```
 
-Japanese Text Analyzerツールは以下のような用途に適しています:
-- 日本語文書の文字数制限の確認
-- 英語と日本語の混在したテキストの分析
-- 翻訳前後の文書量の比較
-- 記事や論文の文字数・単語数の測定
-
-## 設定
-
-### Claude Desktopでの使用
-
-`claude_desktop_config.json`に以下を追加してください:
-
-#### npx
+Windows環境において、上記で動作しなかった場合、下記を試してみてください：
 
 ```json
 {
   "mcpServers": {
-    "japanese-text-analyzer": {
-      "command": "npx",
+    "JapaneseTextAnalyzer": {
+      "command": "cmd",
       "args": [
-        "-y",
-        "@Mistizz/japanese-text-analyzer"
+        "/c",
+        "npx",
+        "github:Mistizz/mcp-JapaneseTextAnalyzer"
       ]
     }
   }
 }
 ```
+Japanese Text Analyzerツールは以下のような用途に適しています:
+- 日本語文書の文字数の確認
+- 記事や論文の文字数・単語数の測定
 
 
 ## ライセンス
