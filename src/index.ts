@@ -227,7 +227,7 @@ class JapaneseTextAnalyzer {
       'count-text-chars', 
       'テキストの文字数を計測します。ファイルパスまたは直接テキストを指定できます。スペースや改行を除いた実質的な文字数をカウントします。日本語と英語の両方に対応しています。',
       { 
-        input: z.string().describe('文字数をカウントするテキスト、またはファイルパス'),
+        input: z.string().describe('文字数をカウントするテキスト、またはファイルパス。ファイルパスの場合は、絶対パスを取得してinputに格納してください。'),
         isFilePath: z.boolean().default(false).describe('入力がファイルパスかどうか (true: ファイルパス, false: 直接テキスト)')
       },
       async ({ input, isFilePath }) => {
@@ -255,7 +255,7 @@ class JapaneseTextAnalyzer {
       'count-text-words', 
       'テキストの単語数を計測します。ファイルパスまたは直接テキストを指定できます。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用して単語をカウントします。日本語モードでは記号や空白を除外した有意な単語のみをカウントします。',
       { 
-        input: z.string().describe('単語数をカウントするテキスト、またはファイルパス'),
+        input: z.string().describe('単語数をカウントするテキスト、またはファイルパス。ファイルパスの場合は、絶対パスを取得してinputに格納してください。'),
         language: z.enum(['en', 'ja']).default('en').describe('テキストの言語 (en: 英語, ja: 日本語)'),
         isFilePath: z.boolean().default(false).describe('入力がファイルパスかどうか (true: ファイルパス, false: 直接テキスト)')
       },
