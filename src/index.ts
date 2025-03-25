@@ -122,7 +122,7 @@ async function initializeTokenizer() {
 }
 
 // ファイルパスを解決する関数 - 簡素化版
-function resolveFilePath(inputPath: string, currentDir?: string): string {
+function resolveFilePath(inputPath: string, currentDir: string): string {
   try {
     // 絶対パスの場合はそのまま使用
     if (path.isAbsolute(inputPath) && fs.existsSync(inputPath)) {
@@ -130,15 +130,13 @@ function resolveFilePath(inputPath: string, currentDir?: string): string {
       return inputPath;
     }
 
-    // 1. カレントディレクトリが指定されている場合、そこから検索
-    if (currentDir) {
-      const currentDirPath = path.resolve(currentDir, inputPath);
-      if (fs.existsSync(currentDirPath)) {
-        console.error(`カレントディレクトリでファイルを発見: ${currentDirPath}`);
-        return currentDirPath;
-      }
-      console.error(`カレントディレクトリ「${currentDir}」にファイル「${inputPath}」は見つかりませんでした`);
+    // 1. カレントディレクトリから検索
+    const currentDirPath = path.resolve(currentDir, inputPath);
+    if (fs.existsSync(currentDirPath)) {
+      console.error(`カレントディレクトリでファイルを発見: ${currentDirPath}`);
+      return currentDirPath;
     }
+    console.error(`カレントディレクトリ「${currentDir}」にファイル「${inputPath}」は見つかりませんでした`);
 
     // 2. プロジェクトディレクトリから検索
     const projectRoot = path.resolve(__dirname, '..');
@@ -273,10 +271,10 @@ class JapaneseTextAnalyzer {
     // ファイルの文字数を計測
     this.server.tool(
       'count-chars', 
-      'ファイルの文字数を計測します。ファイル名とオプションのカレントディレクトリを指定できます。スペースや改行を除いた実質的な文字数をカウントします。',
+      'ファイルの文字数を計測します。ファイル名とカレントディレクトリを指定できます。スペースや改行を除いた実質的な文字数をカウントします。',
       { 
         filePath: z.string().describe('文字数をカウントするファイルのパスまたは名前'),
-        currentDir: z.string().optional().describe('ファイルを検索するカレントディレクトリ（省略可能）')
+        currentDir: z.string().describe('ファイルを検索するカレントディレクトリ')
       },
       async ({ filePath, currentDir }) => {
         try {
@@ -299,11 +297,11 @@ class JapaneseTextAnalyzer {
     // ファイルの単語数を計測
     this.server.tool(
       'count-words', 
-      'ファイルの単語数を計測します。ファイル名とオプションのカレントディレクトリを指定できます。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
+      'ファイルの単語数を計測します。ファイル名とカレントディレクトリを指定できます。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
         filePath: z.string().describe('単語数をカウントするファイルのパスまたは名前'),
         language: z.enum(['en', 'ja']).default('en').describe('ファイルの言語 (en: 英語, ja: 日本語)'),
-        currentDir: z.string().optional().describe('ファイルを検索するカレントディレクトリ（省略可能）')
+        currentDir: z.string().describe('ファイルを検索するカレントディレクトリ')
       },
       async ({ filePath, language, currentDir }) => {
         try {
