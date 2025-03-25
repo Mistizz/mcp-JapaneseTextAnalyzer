@@ -131,7 +131,7 @@ function resolveFilePath(inputPath: string): string {
       }
     }
 
-    // プロジェクトのルートディレクトリを取得
+    // プロジェクトのルートディレクトリを取得（最優先）
     const projectRoot = path.resolve(__dirname, '..');
     console.error(`プロジェクトルートディレクトリ: ${projectRoot}`);
 
@@ -158,20 +158,13 @@ function resolveFilePath(inputPath: string): string {
       return execDirPath;
     }
 
-    // ドキュメントディレクトリを基準に検索（優先度高）
+    // ドキュメントディレクトリを基準に検索
     if (process.env.HOME || process.env.USERPROFILE) {
       const homeDir = process.env.HOME || process.env.USERPROFILE;
       
       // ドキュメントディレクトリ
       const documentsPath = path.resolve(homeDir, 'Documents');
       if (fs.existsSync(documentsPath)) {
-        // 特定のプロジェクトパスを試す
-        const specificProjectPath = path.resolve(documentsPath, 'mcp', 'textCount', inputPath);
-        if (fs.existsSync(specificProjectPath)) {
-          console.error(`ファイルパス解決(特定プロジェクトパス): ${inputPath} -> ${specificProjectPath}`);
-          return specificProjectPath;
-        }
-        
         // 一般的なドキュメントディレクトリ
         const documentsBasedPath = path.resolve(documentsPath, inputPath);
         if (fs.existsSync(documentsBasedPath)) {
@@ -219,7 +212,6 @@ function resolveFilePath(inputPath: string): string {
     
     if (process.env.HOME || process.env.USERPROFILE) {
       const homeDir = process.env.HOME || process.env.USERPROFILE;
-      console.error(`- 特定プロジェクトパス: ${path.resolve(homeDir, 'Documents', 'mcp', 'textCount', inputPath)}`);
       console.error(`- ドキュメント基準: ${path.resolve(homeDir, 'Documents', inputPath)}`);
       console.error(`- ホームディレクトリ基準: ${path.resolve(homeDir, inputPath)}`);
       console.error(`- デスクトップ基準: ${path.resolve(homeDir, 'Desktop', inputPath)}`);
