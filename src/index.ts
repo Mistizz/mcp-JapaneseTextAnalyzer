@@ -121,106 +121,51 @@ async function initializeTokenizer() {
   return initializingPromise;
 }
 
-// ファイルパスを解決する関数
-function resolveFilePath(inputPath: string): string {
+// ファイルパスを解決する関数 - 簡素化版
+function resolveFilePath(inputPath: string, currentDir?: string): string {
   try {
-    // 絶対パスかどうかを確認
-    if (path.isAbsolute(inputPath)) {
-      if (fs.existsSync(inputPath)) {
-        return inputPath;
-      }
+    // 絶対パスの場合はそのまま使用
+    if (path.isAbsolute(inputPath) && fs.existsSync(inputPath)) {
+      console.error(`絶対パスでファイルを発見: ${inputPath}`);
+      return inputPath;
     }
 
-    // プロジェクトのルートディレクトリを取得（最優先）
+    // 1. カレントディレクトリが指定されている場合、そこから検索
+    if (currentDir) {
+      const currentDirPath = path.resolve(currentDir, inputPath);
+      if (fs.existsSync(currentDirPath)) {
+        console.error(`カレントディレクトリでファイルを発見: ${currentDirPath}`);
+        return currentDirPath;
+      }
+      console.error(`カレントディレクトリ「${currentDir}」にファイル「${inputPath}」は見つかりませんでした`);
+    }
+
+    // 2. プロジェクトディレクトリから検索
     const projectRoot = path.resolve(__dirname, '..');
-    console.error(`プロジェクトルートディレクトリ: ${projectRoot}`);
-
-    // 最初にプロジェクトディレクトリからの相対パスを試す（優先度高）
-    const projectBasedPath = path.resolve(projectRoot, inputPath);
-    if (fs.existsSync(projectBasedPath)) {
-      console.error(`ファイルパス解決(プロジェクトディレクトリ基準): ${inputPath} -> ${projectBasedPath}`);
-      return projectBasedPath;
+    const projectPath = path.resolve(projectRoot, inputPath);
+    if (fs.existsSync(projectPath)) {
+      console.error(`プロジェクトディレクトリでファイルを発見: ${projectPath}`);
+      return projectPath;
     }
 
-    // カレントディレクトリからの相対パス
-    const resolvedPath = path.resolve(process.cwd(), inputPath);
-    
-    // ファイルが存在するか確認
-    if (fs.existsSync(resolvedPath)) {
-      console.error(`ファイルパス解決(カレントディレクトリ基準): ${inputPath} -> ${resolvedPath}`);
-      return resolvedPath;
+    // 3. process.cwd()から検索
+    const cwdPath = path.resolve(process.cwd(), inputPath);
+    if (fs.existsSync(cwdPath)) {
+      console.error(`カレントワーキングディレクトリでファイルを発見: ${cwdPath}`);
+      return cwdPath;
     }
 
-    // 実行ファイルのディレクトリからの相対パス
-    const execDirPath = path.resolve(__dirname, inputPath);
-    if (fs.existsSync(execDirPath)) {
-      console.error(`ファイルパス解決(実行ファイルディレクトリ基準): ${inputPath} -> ${execDirPath}`);
-      return execDirPath;
+    // 4. __dirnameから検索
+    const dirnamePath = path.resolve(__dirname, inputPath);
+    if (fs.existsSync(dirnamePath)) {
+      console.error(`実行ディレクトリでファイルを発見: ${dirnamePath}`);
+      return dirnamePath;
     }
 
-    // ドキュメントディレクトリを基準に検索
-    if (process.env.HOME || process.env.USERPROFILE) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      
-      // ドキュメントディレクトリ
-      const documentsPath = path.resolve(homeDir, 'Documents');
-      if (fs.existsSync(documentsPath)) {
-        // 一般的なドキュメントディレクトリ
-        const documentsBasedPath = path.resolve(documentsPath, inputPath);
-        if (fs.existsSync(documentsBasedPath)) {
-          console.error(`ファイルパス解決(ドキュメント基準): ${inputPath} -> ${documentsBasedPath}`);
-          return documentsBasedPath;
-        }
-      }
-    }
-
-    // ホームディレクトリを基準にしたパスを試す
-    if (process.env.HOME || process.env.USERPROFILE) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      const homeBasedPath = path.resolve(homeDir, inputPath);
-      
-      if (fs.existsSync(homeBasedPath)) {
-        console.error(`ファイルパス解決(ホームディレクトリ基準): ${inputPath} -> ${homeBasedPath}`);
-        return homeBasedPath;
-      }
-    }
-
-    // デスクトップディレクトリを基準に検索
-    if (process.env.HOME || process.env.USERPROFILE) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      const desktopPath = path.resolve(homeDir, 'Desktop');
-      
-      if (fs.existsSync(desktopPath)) {
-        const desktopBasedPath = path.resolve(desktopPath, inputPath);
-        
-        if (fs.existsSync(desktopBasedPath)) {
-          console.error(`ファイルパス解決(デスクトップ基準): ${inputPath} -> ${desktopBasedPath}`);
-          return desktopBasedPath;
-        }
-      }
-    }
-
-    // どこにも見つからなかった場合、元のパスを返す前に詳細なログを出力
-    console.error(`ファイルパスを解決できませんでした: ${inputPath}`);
-    console.error(`試したパス一覧:`);
-    if (path.isAbsolute(inputPath)) {
-      console.error(`- 絶対パス: ${inputPath}`);
-    }
-    console.error(`- プロジェクトディレクトリ基準: ${projectBasedPath}`);
-    console.error(`- カレントディレクトリ基準: ${resolvedPath}`);
-    console.error(`- 実行ファイルディレクトリ基準: ${execDirPath}`);
-    
-    if (process.env.HOME || process.env.USERPROFILE) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      console.error(`- ドキュメント基準: ${path.resolve(homeDir, 'Documents', inputPath)}`);
-      console.error(`- ホームディレクトリ基準: ${path.resolve(homeDir, inputPath)}`);
-      console.error(`- デスクトップ基準: ${path.resolve(homeDir, 'Desktop', inputPath)}`);
-    }
-    
-    return inputPath;
+    // どこにも見つからなかった場合
+    throw new Error(`ファイル "${inputPath}" が見つかりませんでした。有効なファイルパスを指定してください。`);
   } catch (error) {
-    console.error(`ファイルパス解決中にエラーが発生: ${error}`);
-    return inputPath;
+    throw error;
   }
 }
 
@@ -325,101 +270,25 @@ class JapaneseTextAnalyzer {
 
   // ツールをセットアップ
   setupTools() {
-    // テキストの文字数を計測するツール（ファイルパスまたは直接テキスト入力に対応）
-    this.server.tool(
-      'count-text-chars', 
-      'テキストの文字数を計測します。ファイルパスまたは直接テキストを指定できます。スペースや改行を除いた実質的な文字数をカウントします。日本語と英語の両方に対応しています。',
-      { 
-        input: z.string().describe('文字数をカウントするテキスト、またはファイルの絶対パス（ファイルパスを指定する場合は、絶対パスを取得してinputに格納してください）'),
-        isFilePath: z.boolean().default(false).describe('入力がファイルパスかどうか (true: ファイルパス, false: 直接テキスト)')
-      },
-      async ({ input, isFilePath }) => {
-        if (isFilePath) {
-          try {
-            // 入力パスを解決
-            const resolvedPath = resolveFilePath(input);
-            
-            // パスが変更された場合、ログに出力
-            if (resolvedPath !== input) {
-              console.error(`パスを解決しました: ${input} -> ${resolvedPath}`);
-            }
-            
-            const fileContent = fs.readFileSync(resolvedPath, 'utf8');
-            return this.countTextCharsImpl(fileContent, `ファイル '${resolvedPath}'`);
-          } catch (error: any) {
-            return {
-              content: [{ 
-                type: 'text' as const, 
-                text: `ファイル読み込みエラー: ${error.message}\n\n指定されたパス "${input}" が見つからないか、アクセスできません。`
-              }],
-              isError: true
-            };
-          }
-        } else {
-          return this.countTextCharsImpl(input);
-        }
-      }
-    );
-
-    // テキストの単語数を計測するツール（ファイルパスまたは直接テキスト入力に対応）
-    this.server.tool(
-      'count-text-words', 
-      'テキストの単語数を計測します。ファイルパスまたは直接テキストを指定できます。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用して単語をカウントします。日本語モードでは記号や空白を除外した有意な単語のみをカウントします。',
-      { 
-        input: z.string().describe('単語数をカウントするテキスト、またはファイルの絶対パス（ファイルパスを指定する場合は、絶対パスを取得してinputに格納してください）'),
-        language: z.enum(['en', 'ja']).default('en').describe('テキストの言語 (en: 英語, ja: 日本語)'),
-        isFilePath: z.boolean().default(false).describe('入力がファイルパスかどうか (true: ファイルパス, false: 直接テキスト)')
-      },
-      async ({ input, language, isFilePath }) => {
-        if (isFilePath) {
-          try {
-            // 入力パスを解決
-            const resolvedPath = resolveFilePath(input);
-            
-            // パスが変更された場合、ログに出力
-            if (resolvedPath !== input) {
-              console.error(`パスを解決しました: ${input} -> ${resolvedPath}`);
-            }
-            
-            const fileContent = fs.readFileSync(resolvedPath, 'utf8');
-            return await this.countTextWordsImpl(fileContent, language, `ファイル '${resolvedPath}'`);
-          } catch (error: any) {
-            return {
-              content: [{ 
-                type: 'text' as const, 
-                text: `ファイル読み込みエラー: ${error.message}\n\n指定されたパス "${input}" が見つからないか、アクセスできません。`
-              }],
-              isError: true
-            };
-          }
-        } else {
-          return await this.countTextWordsImpl(input, language);
-        }
-      }
-    );
-
-    // 後方互換性のために古いツール名も残す（非推奨）
+    // ファイルの文字数を計測
     this.server.tool(
       'count-chars', 
-      '【非推奨】指定されたファイルの文字数を計測します。代わりに count-text-chars を使用してください。',
-      { filePath: z.string().describe('文字数をカウントするファイルのパス') },
-      async ({ filePath }) => {
+      'ファイルの文字数を計測します。ファイル名とオプションのカレントディレクトリを指定できます。スペースや改行を除いた実質的な文字数をカウントします。',
+      { 
+        filePath: z.string().describe('文字数をカウントするファイルのパスまたは名前'),
+        currentDir: z.string().optional().describe('ファイルを検索するカレントディレクトリ（省略可能）')
+      },
+      async ({ filePath, currentDir }) => {
         try {
-          // 入力パスを解決
-          const resolvedPath = resolveFilePath(filePath);
-          
-          // パスが変更された場合、ログに出力
-          if (resolvedPath !== filePath) {
-            console.error(`パスを解決しました: ${filePath} -> ${resolvedPath}`);
-          }
-          
+          // ファイルパスを解決
+          const resolvedPath = resolveFilePath(filePath, currentDir);
           const fileContent = fs.readFileSync(resolvedPath, 'utf8');
           return this.countTextCharsImpl(fileContent, `ファイル '${resolvedPath}'`);
         } catch (error: any) {
           return {
             content: [{ 
               type: 'text' as const, 
-              text: `ファイル読み込みエラー: ${error.message}\n\n指定されたパス "${filePath}" が見つからないか、アクセスできません。\n\n代わりに count-text-chars ツールを使用することをお勧めします。`
+              text: `ファイル読み込みエラー: ${error.message}`
             }],
             isError: true
           };
@@ -427,30 +296,26 @@ class JapaneseTextAnalyzer {
       }
     );
 
+    // ファイルの単語数を計測
     this.server.tool(
       'count-words', 
-      '【非推奨】指定されたファイルの単語数を計測します。代わりに count-text-words を使用してください。',
+      'ファイルの単語数を計測します。ファイル名とオプションのカレントディレクトリを指定できます。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
-        filePath: z.string().describe('単語数をカウントするファイルのパス'),
-        language: z.enum(['en', 'ja']).default('en').describe('ファイルの言語 (en: 英語, ja: 日本語)')
+        filePath: z.string().describe('単語数をカウントするファイルのパスまたは名前'),
+        language: z.enum(['en', 'ja']).default('en').describe('ファイルの言語 (en: 英語, ja: 日本語)'),
+        currentDir: z.string().optional().describe('ファイルを検索するカレントディレクトリ（省略可能）')
       },
-      async ({ filePath, language }) => {
+      async ({ filePath, language, currentDir }) => {
         try {
-          // 入力パスを解決
-          const resolvedPath = resolveFilePath(filePath);
-          
-          // パスが変更された場合、ログに出力
-          if (resolvedPath !== filePath) {
-            console.error(`パスを解決しました: ${filePath} -> ${resolvedPath}`);
-          }
-          
+          // ファイルパスを解決
+          const resolvedPath = resolveFilePath(filePath, currentDir);
           const fileContent = fs.readFileSync(resolvedPath, 'utf8');
           return await this.countTextWordsImpl(fileContent, language, `ファイル '${resolvedPath}'`);
         } catch (error: any) {
           return {
             content: [{ 
               type: 'text' as const, 
-              text: `ファイル読み込みエラー: ${error.message}\n\n指定されたパス "${filePath}" が見つからないか、アクセスできません。\n\n代わりに count-text-words ツールを使用することをお勧めします。`
+              text: `ファイル読み込みエラー: ${error.message}`
             }],
             isError: true
           };
@@ -458,21 +323,23 @@ class JapaneseTextAnalyzer {
       }
     );
 
+    // テキストの文字数を計測
     this.server.tool(
       'count-clipboard-chars', 
-      '【非推奨】クリップボードからのテキストの文字数を計測します。代わりに count-text-chars を使用してください。',
+      'テキストの文字数を計測します。スペースや改行を除いた実質的な文字数をカウントします。',
       { text: z.string().describe('文字数をカウントするテキスト') },
-      async ({ text }) => this.countTextCharsImpl(text, 'クリップボードのテキスト')
+      async ({ text }) => this.countTextCharsImpl(text)
     );
 
+    // テキストの単語数を計測
     this.server.tool(
       'count-clipboard-words', 
-      '【非推奨】クリップボードからのテキストの単語数を計測します。代わりに count-text-words を使用してください。',
+      'テキストの単語数を計測します。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
         text: z.string().describe('単語数をカウントするテキスト'),
         language: z.enum(['en', 'ja']).default('en').describe('テキストの言語 (en: 英語, ja: 日本語)')
       },
-      async ({ text, language }) => await this.countTextWordsImpl(text, language, 'クリップボードのテキスト')
+      async ({ text, language }) => await this.countTextWordsImpl(text, language)
     );
   }
 
