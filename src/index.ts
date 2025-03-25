@@ -121,16 +121,33 @@ async function initializeTokenizer() {
   return initializingPromise;
 }
 
-// ファイルパスを解決する関数 - 絶対パス優先の単純化版
+// ファイルパスを解決する関数 - WindowsとWSL/Linux形式の両方に対応
 function resolveFilePath(filePath: string): string {
   try {
-    // 絶対パスの場合はそのまま使用
+    // WSL/Linux形式のパス (/c/Users/...) をWindows形式 (C:\Users\...) に変換
+    if (filePath.match(/^\/[a-zA-Z]\//)) {
+      // /c/Users/... 形式を C:\Users\... 形式に変換
+      const drive = filePath.charAt(1).toUpperCase();
+      let windowsPath = `${drive}:${filePath.substring(2).replace(/\//g, '\\')}`;
+      
+      console.error(`WSL/Linux形式のパスをWindows形式に変換: ${filePath} -> ${windowsPath}`);
+      
+      if (fs.existsSync(windowsPath)) {
+        console.error(`変換されたパスでファイルを発見: ${windowsPath}`);
+        return windowsPath;
+      }
+    }
+    
+    // 通常の絶対パスの処理
     if (path.isAbsolute(filePath)) {
       if (fs.existsSync(filePath)) {
         console.error(`絶対パスでファイルを発見: ${filePath}`);
         return filePath;
       }
-      throw new Error(`指定された絶対パス "${filePath}" が存在しません。`);
+      
+      // 絶対パスでファイルが見つからない場合はエラー
+      throw new Error(`指定された絶対パス "${filePath}" が存在しません。パスが正しいか確認してください。` +
+                      ` Windows形式(C:\\Users\\...)かWSL/Linux形式(/c/Users/...)で指定してください。`);
     }
     
     // 相対パスの場合、カレントワーキングディレクトリから検索
@@ -141,7 +158,8 @@ function resolveFilePath(filePath: string): string {
     }
     
     // どこにも見つからなかった場合
-    throw new Error(`ファイル "${filePath}" が見つかりませんでした。絶対パスで指定してください。`);
+    throw new Error(`ファイル "${filePath}" が見つかりませんでした。絶対パスで指定してください。` +
+                    ` Windows形式(C:\\Users\\...)かWSL/Linux形式(/c/Users/...)で指定可能です。`);
   } catch (error) {
     throw error;
   }
@@ -251,9 +269,9 @@ class JapaneseTextAnalyzer {
     // ファイルの文字数を計測
     this.server.tool(
       'count-chars', 
-      'ファイルの文字数を計測します。絶対パスを指定してください。スペースや改行を除いた実質的な文字数をカウントします。',
+      'ファイルの文字数を計測します。絶対パスを指定してください（Windows形式 C:\\Users\\...、またはWSL/Linux形式 /c/Users/... のどちらも可）。スペースや改行を除いた実質的な文字数をカウントします。',
       { 
-        filePath: z.string().describe('文字数をカウントするファイルのパス（絶対パスを推奨）')
+        filePath: z.string().describe('文字数をカウントするファイルのパス（Windows形式かWSL/Linux形式の絶対パスを推奨）')
       },
       async ({ filePath }) => {
         try {
@@ -276,9 +294,9 @@ class JapaneseTextAnalyzer {
     // ファイルの単語数を計測
     this.server.tool(
       'count-words', 
-      'ファイルの単語数を計測します。絶対パスを指定してください。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
+      'ファイルの単語数を計測します。絶対パスを指定してください（Windows形式 C:\\Users\\...、またはWSL/Linux形式 /c/Users/... のどちらも可）。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
-        filePath: z.string().describe('単語数をカウントするファイルのパス（絶対パスを推奨）'),
+        filePath: z.string().describe('単語数をカウントするファイルのパス（Windows形式かWSL/Linux形式の絶対パスを推奨）'),
         language: z.enum(['en', 'ja']).default('en').describe('ファイルの言語 (en: 英語, ja: 日本語)')
       },
       async ({ filePath, language }) => {
