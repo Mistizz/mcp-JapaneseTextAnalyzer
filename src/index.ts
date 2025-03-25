@@ -126,7 +126,20 @@ function resolveFilePath(inputPath: string): string {
   try {
     // 絶対パスかどうかを確認
     if (path.isAbsolute(inputPath)) {
-      return inputPath;
+      if (fs.existsSync(inputPath)) {
+        return inputPath;
+      }
+    }
+
+    // プロジェクトのルートディレクトリを取得
+    const projectRoot = path.resolve(__dirname, '..');
+    console.error(`プロジェクトルートディレクトリ: ${projectRoot}`);
+
+    // 最初にプロジェクトディレクトリからの相対パスを試す（優先度高）
+    const projectBasedPath = path.resolve(projectRoot, inputPath);
+    if (fs.existsSync(projectBasedPath)) {
+      console.error(`ファイルパス解決(プロジェクトディレクトリ基準): ${inputPath} -> ${projectBasedPath}`);
+      return projectBasedPath;
     }
 
     // カレントディレクトリからの相対パス
@@ -134,8 +147,38 @@ function resolveFilePath(inputPath: string): string {
     
     // ファイルが存在するか確認
     if (fs.existsSync(resolvedPath)) {
-      console.error(`ファイルパス解決: ${inputPath} -> ${resolvedPath}`);
+      console.error(`ファイルパス解決(カレントディレクトリ基準): ${inputPath} -> ${resolvedPath}`);
       return resolvedPath;
+    }
+
+    // 実行ファイルのディレクトリからの相対パス
+    const execDirPath = path.resolve(__dirname, inputPath);
+    if (fs.existsSync(execDirPath)) {
+      console.error(`ファイルパス解決(実行ファイルディレクトリ基準): ${inputPath} -> ${execDirPath}`);
+      return execDirPath;
+    }
+
+    // ドキュメントディレクトリを基準に検索（優先度高）
+    if (process.env.HOME || process.env.USERPROFILE) {
+      const homeDir = process.env.HOME || process.env.USERPROFILE;
+      
+      // ドキュメントディレクトリ
+      const documentsPath = path.resolve(homeDir, 'Documents');
+      if (fs.existsSync(documentsPath)) {
+        // 特定のプロジェクトパスを試す
+        const specificProjectPath = path.resolve(documentsPath, 'mcp', 'textCount', inputPath);
+        if (fs.existsSync(specificProjectPath)) {
+          console.error(`ファイルパス解決(特定プロジェクトパス): ${inputPath} -> ${specificProjectPath}`);
+          return specificProjectPath;
+        }
+        
+        // 一般的なドキュメントディレクトリ
+        const documentsBasedPath = path.resolve(documentsPath, inputPath);
+        if (fs.existsSync(documentsBasedPath)) {
+          console.error(`ファイルパス解決(ドキュメント基準): ${inputPath} -> ${documentsBasedPath}`);
+          return documentsBasedPath;
+        }
+      }
     }
 
     // ホームディレクトリを基準にしたパスを試す
@@ -149,7 +192,7 @@ function resolveFilePath(inputPath: string): string {
       }
     }
 
-    // デスクトップディレクトリを基準にしたパスを試す
+    // デスクトップディレクトリを基準に検索
     if (process.env.HOME || process.env.USERPROFILE) {
       const homeDir = process.env.HOME || process.env.USERPROFILE;
       const desktopPath = path.resolve(homeDir, 'Desktop');
@@ -164,23 +207,24 @@ function resolveFilePath(inputPath: string): string {
       }
     }
 
-    // ドキュメントディレクトリを基準にしたパスを試す
+    // どこにも見つからなかった場合、元のパスを返す前に詳細なログを出力
+    console.error(`ファイルパスを解決できませんでした: ${inputPath}`);
+    console.error(`試したパス一覧:`);
+    if (path.isAbsolute(inputPath)) {
+      console.error(`- 絶対パス: ${inputPath}`);
+    }
+    console.error(`- プロジェクトディレクトリ基準: ${projectBasedPath}`);
+    console.error(`- カレントディレクトリ基準: ${resolvedPath}`);
+    console.error(`- 実行ファイルディレクトリ基準: ${execDirPath}`);
+    
     if (process.env.HOME || process.env.USERPROFILE) {
       const homeDir = process.env.HOME || process.env.USERPROFILE;
-      const documentsPath = path.resolve(homeDir, 'Documents');
-      
-      if (fs.existsSync(documentsPath)) {
-        const documentsBasedPath = path.resolve(documentsPath, inputPath);
-        
-        if (fs.existsSync(documentsBasedPath)) {
-          console.error(`ファイルパス解決(ドキュメント基準): ${inputPath} -> ${documentsBasedPath}`);
-          return documentsBasedPath;
-        }
-      }
+      console.error(`- 特定プロジェクトパス: ${path.resolve(homeDir, 'Documents', 'mcp', 'textCount', inputPath)}`);
+      console.error(`- ドキュメント基準: ${path.resolve(homeDir, 'Documents', inputPath)}`);
+      console.error(`- ホームディレクトリ基準: ${path.resolve(homeDir, inputPath)}`);
+      console.error(`- デスクトップ基準: ${path.resolve(homeDir, 'Desktop', inputPath)}`);
     }
-
-    // 解決できなかった場合は元のパスを返す
-    console.error(`ファイルパスを解決できませんでした: ${inputPath}`);
+    
     return inputPath;
   } catch (error) {
     console.error(`ファイルパス解決中にエラーが発生: ${error}`);
