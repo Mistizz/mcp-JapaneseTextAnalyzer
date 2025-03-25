@@ -121,47 +121,27 @@ async function initializeTokenizer() {
   return initializingPromise;
 }
 
-// ファイルパスを解決する関数 - 簡素化版
-function resolveFilePath(inputPath: string, currentDir: string): string {
+// ファイルパスを解決する関数 - 絶対パス優先の単純化版
+function resolveFilePath(filePath: string): string {
   try {
     // 絶対パスの場合はそのまま使用
-    if (path.isAbsolute(inputPath) && fs.existsSync(inputPath)) {
-      console.error(`絶対パスでファイルを発見: ${inputPath}`);
-      return inputPath;
+    if (path.isAbsolute(filePath)) {
+      if (fs.existsSync(filePath)) {
+        console.error(`絶対パスでファイルを発見: ${filePath}`);
+        return filePath;
+      }
+      throw new Error(`指定された絶対パス "${filePath}" が存在しません。`);
     }
-
-    // 1. カレントディレクトリから検索
-    const currentDirPath = path.resolve(currentDir, inputPath);
-    if (fs.existsSync(currentDirPath)) {
-      console.error(`カレントディレクトリでファイルを発見: ${currentDirPath}`);
-      return currentDirPath;
-    }
-    console.error(`カレントディレクトリ「${currentDir}」にファイル「${inputPath}」は見つかりませんでした`);
-
-    // 2. プロジェクトディレクトリから検索
-    const projectRoot = path.resolve(__dirname, '..');
-    const projectPath = path.resolve(projectRoot, inputPath);
-    if (fs.existsSync(projectPath)) {
-      console.error(`プロジェクトディレクトリでファイルを発見: ${projectPath}`);
-      return projectPath;
-    }
-
-    // 3. process.cwd()から検索
-    const cwdPath = path.resolve(process.cwd(), inputPath);
+    
+    // 相対パスの場合、カレントワーキングディレクトリから検索
+    const cwdPath = path.resolve(process.cwd(), filePath);
     if (fs.existsSync(cwdPath)) {
-      console.error(`カレントワーキングディレクトリでファイルを発見: ${cwdPath}`);
+      console.error(`カレントディレクトリでファイルを発見: ${cwdPath}`);
       return cwdPath;
     }
-
-    // 4. __dirnameから検索
-    const dirnamePath = path.resolve(__dirname, inputPath);
-    if (fs.existsSync(dirnamePath)) {
-      console.error(`実行ディレクトリでファイルを発見: ${dirnamePath}`);
-      return dirnamePath;
-    }
-
+    
     // どこにも見つからなかった場合
-    throw new Error(`ファイル "${inputPath}" が見つかりませんでした。有効なファイルパスを指定してください。`);
+    throw new Error(`ファイル "${filePath}" が見つかりませんでした。絶対パスで指定してください。`);
   } catch (error) {
     throw error;
   }
@@ -271,15 +251,14 @@ class JapaneseTextAnalyzer {
     // ファイルの文字数を計測
     this.server.tool(
       'count-chars', 
-      'ファイルの文字数を計測します。ファイル名とカレントディレクトリを指定できます。スペースや改行を除いた実質的な文字数をカウントします。',
+      'ファイルの文字数を計測します。絶対パスを指定してください。スペースや改行を除いた実質的な文字数をカウントします。',
       { 
-        filePath: z.string().describe('文字数をカウントするファイルのパスまたは名前'),
-        currentDir: z.string().describe('ファイルを検索するカレントディレクトリ')
+        filePath: z.string().describe('文字数をカウントするファイルのパス（絶対パスを推奨）')
       },
-      async ({ filePath, currentDir }) => {
+      async ({ filePath }) => {
         try {
           // ファイルパスを解決
-          const resolvedPath = resolveFilePath(filePath, currentDir);
+          const resolvedPath = resolveFilePath(filePath);
           const fileContent = fs.readFileSync(resolvedPath, 'utf8');
           return this.countTextCharsImpl(fileContent, `ファイル '${resolvedPath}'`);
         } catch (error: any) {
@@ -297,16 +276,15 @@ class JapaneseTextAnalyzer {
     // ファイルの単語数を計測
     this.server.tool(
       'count-words', 
-      'ファイルの単語数を計測します。ファイル名とカレントディレクトリを指定できます。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
+      'ファイルの単語数を計測します。絶対パスを指定してください。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
-        filePath: z.string().describe('単語数をカウントするファイルのパスまたは名前'),
-        language: z.enum(['en', 'ja']).default('en').describe('ファイルの言語 (en: 英語, ja: 日本語)'),
-        currentDir: z.string().describe('ファイルを検索するカレントディレクトリ')
+        filePath: z.string().describe('単語数をカウントするファイルのパス（絶対パスを推奨）'),
+        language: z.enum(['en', 'ja']).default('en').describe('ファイルの言語 (en: 英語, ja: 日本語)')
       },
-      async ({ filePath, language, currentDir }) => {
+      async ({ filePath, language }) => {
         try {
           // ファイルパスを解決
-          const resolvedPath = resolveFilePath(filePath, currentDir);
+          const resolvedPath = resolveFilePath(filePath);
           const fileContent = fs.readFileSync(resolvedPath, 'utf8');
           return await this.countTextWordsImpl(fileContent, language, `ファイル '${resolvedPath}'`);
         } catch (error: any) {
