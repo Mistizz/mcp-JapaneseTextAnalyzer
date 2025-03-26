@@ -1,6 +1,10 @@
 # Japanese Text Analyzer MCP Server
 テキストの文字数と単語数を日本語と英語の両方でカウントするためのMCPサーバー実装です。
 
+<a href="https://glama.ai/mcp/servers/@Mistizz/mcp-JapaneseTextAnalyzer">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@Mistizz/mcp-JapaneseTextAnalyzer/badge" alt="Japanese Text Analyzer MCP server" />
+</a>
+
 ## 機能
 
 - 日本語と英語のテキストの文字数をカウント
@@ -165,4 +169,4 @@ README.md の単語数を英語モードで数えてください。
 
 ## ライセンス
 
-このMCPサーバーはMITライセンスの下で提供されています。これは、MITライセンスの条件に従って、ソフトウェアを自由に使用、変更、配布できることを意味します。詳細については、プロジェクトリポジトリのLICENSEファイルをご覧ください。 
+このMCPサーバーはMITライセンスの下で提供されています。これは、MITライセンスの条件に従って、ソフトウェアを自由に使用、変更、配布できることを意味します。詳細については、プロジェクトリポジトリのLICENSEファイルをご覧ください。
