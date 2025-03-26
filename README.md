@@ -33,12 +33,16 @@
 - `language` (string, オプション, デフォルト: "en"): テキストの言語 (en: 英語, ja: 日本語)
 - `isFilePath` (boolean, オプション, デフォルト: false): 入力がファイルパスかどうか (true: ファイルパス, false: 直接テキスト)
 
-### Tools
+### 実装されているツール
 
-- `count-chars`: ファイルの文字数を計測
-- `count-words`: ファイルの単語数を計測
-- `count-clipboard-chars`: クリップボードテキストの文字数を計測
-- `count-clipboard-words`: クリップボードテキストの単語数を計測
+現在、以下のツールが実装されています：
+
+- `count-chars`: ファイルの文字数を計測します。絶対パスを指定してください（Windows形式 C:\Users\...、またはWSL/Linux形式 /c/Users/... のどちらも可）。スペースや改行を除いた実質的な文字数をカウントします。
+- `count-words`: ファイルの単語数を計測します。絶対パスを指定してください（Windows形式 C:\Users\...、またはWSL/Linux形式 /c/Users/... のどちらも可）。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。
+- `count-clipboard-chars`: テキストの文字数を計測します。スペースや改行を除いた実質的な文字数をカウントします。
+- `count-clipboard-words`: テキストの単語数を計測します。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。
+
+> 注意: `count-text-chars`と`count-text-words`は将来の機能拡張用に予定されたツール名であり、現在はまだ実装されていません。
 
 ## 使用方法
 
