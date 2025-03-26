@@ -33,14 +33,12 @@
 - `language` (string, オプション, デフォルト: "en"): テキストの言語 (en: 英語, ja: 日本語)
 - `isFilePath` (boolean, オプション, デフォルト: false): 入力がファイルパスかどうか (true: ファイルパス, false: 直接テキスト)
 
-### 非推奨のツール（後方互換性のために維持）
+### Tools
 
-以下のツールは後方互換性のために維持されていますが、新しいツールの使用を推奨します。
-
-- `count-chars`: ファイルの文字数を計測（代わりに `count-text-chars` を使用）
-- `count-words`: ファイルの単語数を計測（代わりに `count-text-words` を使用）
-- `count-clipboard-chars`: クリップボードテキストの文字数を計測（代わりに `count-text-chars` を使用）
-- `count-clipboard-words`: クリップボードテキストの単語数を計測（代わりに `count-text-words` を使用）
+- `count-chars`: ファイルの文字数を計測
+- `count-words`: ファイルの単語数を計測
+- `count-clipboard-chars`: クリップボードテキストの文字数を計測
+- `count-clipboard-words`: クリップボードテキストの単語数を計測
 
 ## 使用方法
 
