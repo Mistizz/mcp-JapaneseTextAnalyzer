@@ -264,6 +264,206 @@ class JapaneseTextAnalyzer {
     }
   }
 
+  // テキストの形態素解析結果を返す関数を追加
+  private async analyzeTextImpl(text: string) {
+    try {
+      // 形態素解析器の初期化チェック
+      let tokenizer;
+      try {
+        tokenizer = await initializeTokenizer();
+      } catch (error) {
+        return {
+          content: [{ 
+            type: 'text' as const, 
+            text: '形態素解析器の初期化に失敗しました。しばらく待ってから再試行してください。'
+          }],
+          isError: true
+        };
+      }
+
+      // テキストを文に分割（。で区切る）
+      const sentences = text.split(/[。.!?！？]/g).filter(s => s.trim().length > 0);
+      
+      // 形態素解析を実行
+      const tokens = tokenizer.tokenize(text);
+
+      // 基本的な分析結果
+      const totalChars = text.replace(/[\s\n\r]/g, '').length;
+      const totalSentences = sentences.length;
+      const totalMorphemes = tokens.length;
+
+      // 品詞別のカウント
+      const posCounts: Record<string, number> = {};
+      const particleCounts: Record<string, number> = {};
+      let totalParticles = 0;
+      
+      // 文字種別のカウント
+      const scriptCounts = {
+        hiragana: 0,
+        katakana: 0,
+        kanji: 0,
+        alphabet: 0,
+        digit: 0,
+        other: 0
+      };
+      
+      // 単語の一意性確認用
+      const uniqueWords = new Set<string>();
+      let katakanaWords = 0;
+      let punctuationCount = 0;
+      const honorificExpressions = ['です', 'ます', 'でした', 'ました', 'ございます', 'いただく', 'なさる', 'れる', 'られる', 'どうぞ', 'お', 'ご'];
+      let honorificCount = 0;
+
+      // 各トークンを処理
+      tokens.forEach((token: any) => {
+        // 品詞カウント
+        posCounts[token.pos] = (posCounts[token.pos] || 0) + 1;
+        
+        // 助詞カウント
+        if (token.pos === '助詞') {
+          particleCounts[token.surface_form] = (particleCounts[token.surface_form] || 0) + 1;
+          totalParticles++;
+        }
+        
+        // 単語カウント
+        uniqueWords.add(token.basic_form);
+        
+        // カタカナ語カウント
+        if (/^[\u30A0-\u30FF]+$/.test(token.surface_form)) {
+          katakanaWords++;
+        }
+
+        // 句読点カウント
+        if (token.pos === '記号' && (token.pos_detail_1 === '句点' || token.pos_detail_1 === '読点')) {
+          punctuationCount++;
+        }
+
+        // 敬語表現カウント
+        if (honorificExpressions.some(expr => token.surface_form.includes(expr) || token.basic_form.includes(expr))) {
+          honorificCount++;
+        }
+      });
+
+      // 文字種のカウント
+      for (const char of text) {
+        if (/[\u3040-\u309F]/.test(char)) {
+          scriptCounts.hiragana++;
+        } else if (/[\u30A0-\u30FF]/.test(char)) {
+          scriptCounts.katakana++;
+        } else if (/[\u4E00-\u9FAF]/.test(char)) {
+          scriptCounts.kanji++;
+        } else if (/[a-zA-Z]/.test(char)) {
+          scriptCounts.alphabet++;
+        } else if (/[0-9０-９]/.test(char)) {
+          scriptCounts.digit++;
+        } else if (!/\s/.test(char)) {
+          scriptCounts.other++;
+        }
+      }
+
+      // 各指標の計算
+      const totalNonSpaceChars = Object.values(scriptCounts).reduce((a, b) => a + b, 0);
+      
+      // features.ymlに基づく解析結果
+      const analysisResults = {
+        average_sentence_length: {
+          name: '平均文長',
+          value: totalSentences > 0 ? (totalChars / totalSentences).toFixed(2) : '0.00',
+          unit: '文字／文',
+          description: '一文の長さ。長すぎると読みにくくなる。'
+        },
+        average_morphemes_per_sentence: {
+          name: '文あたりの形態素数',
+          value: totalSentences > 0 ? (totalMorphemes / totalSentences).toFixed(2) : '0.00',
+          unit: '形態素／文',
+          description: '文の密度や構文の複雑さを表す。'
+        },
+        pos_ratio: {
+          name: '品詞の割合',
+          value: Object.entries(posCounts).map(([pos, count]) => {
+            return `${pos}: ${((count / totalMorphemes) * 100).toFixed(2)}%`;
+          }).join(', '),
+          unit: '%',
+          description: '名詞・動詞・形容詞などの使用バランスを分析。'
+        },
+        particle_ratio: {
+          name: '助詞の割合',
+          value: Object.entries(particleCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([particle, count]) => {
+              return `${particle}: ${((count / totalParticles) * 100).toFixed(2)}%`;
+            }).join(', '),
+          unit: '%',
+          description: '主語・目的語などの構造分析や文の流れを判断。'
+        },
+        script_type_ratio: {
+          name: '文字種の割合',
+          value: Object.entries(scriptCounts).map(([type, count]) => {
+            return `${type}: ${((count / totalNonSpaceChars) * 100).toFixed(2)}%`;
+          }).join(', '),
+          unit: '%',
+          description: 'ひらがな・カタカナ・漢字・英数字の構成比率。'
+        },
+        vocabulary_diversity: {
+          name: '語彙の多様性（タイプ/トークン比）',
+          value: ((uniqueWords.size / totalMorphemes) * 100).toFixed(2),
+          unit: '%',
+          description: '語彙の豊かさや表現力の指標。'
+        },
+        katakana_word_ratio: {
+          name: 'カタカナ語の割合',
+          value: ((katakanaWords / totalMorphemes) * 100).toFixed(2),
+          unit: '%',
+          description: '外来語や専門用語の多さ、カジュアルさを示す。'
+        },
+        honorific_frequency: {
+          name: '敬語の頻度',
+          value: totalSentences > 0 ? (honorificCount / totalSentences).toFixed(2) : '0.00',
+          unit: '回／文',
+          description: '丁寧・フォーマルさを示す。'
+        },
+        punctuation_per_sentence: {
+          name: '句読点の平均数',
+          value: totalSentences > 0 ? (punctuationCount / totalSentences).toFixed(2) : '0.00',
+          unit: '個／文',
+          description: '文の区切りや読みやすさに影響。'
+        }
+      };
+
+      // 結果をテキスト形式で整形
+      const resultText = `# テキスト分析結果
+
+## 基本情報
+- 総文字数: ${totalChars}文字
+- 文の数: ${totalSentences}
+- 総形態素数: ${totalMorphemes}
+
+## 詳細分析
+${Object.entries(analysisResults).map(([key, data]) => {
+  return `### ${data.name} (${data.unit})
+- 値: ${data.value}
+- 説明: ${data.description}`;
+}).join('\n\n')}
+`;
+
+      return {
+        content: [{ 
+          type: 'text' as const, 
+          text: resultText
+        }]
+      };
+    } catch (error: any) {
+      return {
+        content: [{ 
+          type: 'text' as const, 
+          text: `分析中にエラーが発生しました: ${error.message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
   // ツールをセットアップ
   setupTools() {
     // ファイルの文字数を計測
@@ -334,6 +534,41 @@ class JapaneseTextAnalyzer {
         language: z.enum(['en', 'ja']).default('en').describe('テキストの言語 (en: 英語, ja: 日本語)')
       },
       async ({ text, language }) => await this.countTextWordsImpl(text, language)
+    );
+
+    // テキストの詳細分析
+    this.server.tool(
+      'analyze-text', 
+      'テキストの詳細な形態素解析と言語的特徴の分析を行います。文の複雑さ、品詞の割合、語彙の多様性などを解析します。',
+      { 
+        text: z.string().describe('分析するテキスト')
+      },
+      async ({ text }) => await this.analyzeTextImpl(text)
+    );
+
+    // ファイルの詳細分析
+    this.server.tool(
+      'analyze-file', 
+      'ファイルの詳細な形態素解析と言語的特徴の分析を行います。文の複雑さ、品詞の割合、語彙の多様性などを解析します。',
+      { 
+        filePath: z.string().describe('分析するファイルのパス（Windows形式かWSL/Linux形式の絶対パスを推奨）')
+      },
+      async ({ filePath }) => {
+        try {
+          // ファイルパスを解決
+          const resolvedPath = resolveFilePath(filePath);
+          const fileContent = fs.readFileSync(resolvedPath, 'utf8');
+          return await this.analyzeTextImpl(fileContent);
+        } catch (error: any) {
+          return {
+            content: [{ 
+              type: 'text' as const, 
+              text: `ファイル読み込みエラー: ${error.message}`
+            }],
+            isError: true
+          };
+        }
+      }
     );
   }
 
