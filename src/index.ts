@@ -468,7 +468,7 @@ ${Object.entries(analysisResults).map(([key, data]) => {
   setupTools() {
     // ファイルの文字数を計測
     this.server.tool(
-      'count-chars', 
+      'count_chars', 
       'ファイルの文字数を計測します。絶対パスを指定してください（Windows形式 C:\\Users\\...、またはWSL/Linux形式 /c/Users/... のどちらも可）。スペースや改行を除いた実質的な文字数をカウントします。',
       { 
         filePath: z.string().describe('文字数をカウントするファイルのパス（Windows形式かWSL/Linux形式の絶対パスを推奨）')
@@ -493,7 +493,7 @@ ${Object.entries(analysisResults).map(([key, data]) => {
 
     // ファイルの単語数を計測
     this.server.tool(
-      'count-words', 
+      'count_words', 
       'ファイルの単語数を計測します。絶対パスを指定してください（Windows形式 C:\\Users\\...、またはWSL/Linux形式 /c/Users/... のどちらも可）。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
         filePath: z.string().describe('単語数をカウントするファイルのパス（Windows形式かWSL/Linux形式の絶対パスを推奨）'),
@@ -519,7 +519,7 @@ ${Object.entries(analysisResults).map(([key, data]) => {
 
     // テキストの文字数を計測
     this.server.tool(
-      'count-clipboard-chars', 
+      'count_clipboard_chars', 
       'テキストの文字数を計測します。スペースや改行を除いた実質的な文字数をカウントします。',
       { text: z.string().describe('文字数をカウントするテキスト') },
       async ({ text }) => this.countTextCharsImpl(text)
@@ -527,7 +527,7 @@ ${Object.entries(analysisResults).map(([key, data]) => {
 
     // テキストの単語数を計測
     this.server.tool(
-      'count-clipboard-words', 
+      'count_clipboard_words', 
       'テキストの単語数を計測します。英語ではスペースで区切られた単語をカウントし、日本語では形態素解析を使用します。',
       { 
         text: z.string().describe('単語数をカウントするテキスト'),
@@ -538,7 +538,7 @@ ${Object.entries(analysisResults).map(([key, data]) => {
 
     // テキストの詳細分析
     this.server.tool(
-      'analyze-text', 
+      'analyze_text', 
       'テキストの詳細な形態素解析と言語的特徴の分析を行います。文の複雑さ、品詞の割合、語彙の多様性などを解析します。',
       { 
         text: z.string().describe('分析するテキスト')
@@ -548,7 +548,7 @@ ${Object.entries(analysisResults).map(([key, data]) => {
 
     // ファイルの詳細分析
     this.server.tool(
-      'analyze-file', 
+      'analyze_file', 
       'ファイルの詳細な形態素解析と言語的特徴の分析を行います。文の複雑さ、品詞の割合、語彙の多様性などを解析します。',
       { 
         filePath: z.string().describe('分析するファイルのパス（Windows形式かWSL/Linux形式の絶対パスを推奨）')
