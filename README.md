@@ -1,6 +1,7 @@
 # Japanese Text Analyzer MCP Server
 日本語テキストの形態素解析を行えるMCPサーバーです。文章の特徴を言語学的な観点から測定・評価し、文章生成のフィードバックに役立ちます。
 
+[![smithery badge](https://smithery.ai/badge/@Mistizz/mcp-JapaneseTextAnalyzer)](https://smithery.ai/server/@Mistizz/mcp-JapaneseTextAnalyzer)
 <a href="https://glama.ai/mcp/servers/@Mistizz/mcp-JapaneseTextAnalyzer">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@Mistizz/mcp-JapaneseTextAnalyzer/badge" alt="Japanese Text Analyzer MCP server" />
 </a>
@@ -84,6 +85,14 @@
 - 詳細分析結果（平均文長、品詞の割合、文字種の割合、語彙の多様性など）
 
 ## 使用方法
+
+### Installing via Smithery
+
+To install Japanese Text Analyzer for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@Mistizz/mcp-JapaneseTextAnalyzer):
+
+```bash
+npx -y @smithery/cli install @Mistizz/mcp-JapaneseTextAnalyzer --client claude
+```
 
 ### npxでの実行
 
