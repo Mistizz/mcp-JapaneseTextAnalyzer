@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/mistizz-mcp-japanesetextanalyzer-badge.png)](https://mseep.ai/app/mistizz-mcp-japanesetextanalyzer)
+
 # Japanese Text Analyzer MCP Server
 日本語テキストの形態素解析を行えるMCPサーバーです。文章の特徴を言語学的な観点から測定・評価し、文章生成のフィードバックに役立ちます。
 
